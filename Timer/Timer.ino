@@ -1,35 +1,25 @@
 /* This is a valid comment
 
-  A sketch to work with a 7 segment display and 8-bit shift register and a push button.
-  The 7 segment displays numbers starting countStart to countEnd with a delay equals to countDelay between each update
-  When the push button is pushed for a short period , counting reset happens
-  When the push button is pushed for a long period , counting order (ascending, descending) toggles.
-
-  by : Abdelrahman Galal
+  - A sketch to work with a 4 digit 7-segment display,8-bit shift register,active buzzer and 3 push buttons.
+  - Using the 3 buttons (function,plus,minus) buttons the user can set a time.
+  - When the user stop setting the timer , the screen starts to count down until it reach zero time, at this point the buzzer starts beeping until function button is pushed.
+  - If the function button is pushed in the process of counting down,the user is prompoted to set a new counter.
+  - Author : Abdelrahman Galal
 
 */
 
-//const byte displayOne = 8;
-//const byte displayTwo = 9;
-//const byte displayThree = 10;
-//const byte displayFour = 11;
-
-const byte dataPin = 2;
+const byte dataPin = 2; // send serial digits to 7-segment through the shift register
 const byte shiftClockPin = 4;
 const byte memoryClockPin = 7;
-const byte plusPin = 5;
-const byte minusPin = 6;
-const byte functionPin = 3;
-const byte alarmPin = 12 ;
-const byte displayDigitPins[] = {8, 9, 10, 11};
+const byte plusPin = 5; //connected to the plus button
+const byte minusPin = 6; //connected to the minus button
+const byte functionPin = 3; //connected to the function button
+const byte alarmPin = 12 ; //connected to the active buzzer positive leg
+const byte displayDigitPins[] = {8, 9, 10, 11}; //control pins for the 4 digit 7-segment , each pin allow one digit to be active at a time
 unsigned long countPreviousTime ; //last time the counter digit was changed
-const byte leds[] = {252, 96, 218, 242, 102, 182, 190, 224, 254, 246};
-int functionState = 0;
-int plusState = 0;
-int S1 = 0;
-int S2 = 0;
-int M1 = 0;
-int M2 = 0;
+const byte leds[] = {252, 96, 218, 242, 102, 182, 190, 224, 254, 246}; //the 7 segment form f numbers between 0 and 9
+int functionState = 0; //variable to track the state of the device (alarm set,alarm not set,count is done)
+
 
 //setup function
 void setup()
@@ -43,7 +33,6 @@ void setup()
   pinMode(minusPin, INPUT);
   pinMode(alarmPin, OUTPUT);
   digitalWrite(alarmPin, LOW);
-  Serial.begin(9600);
   for (int i = 0; i <= 3; i++)
   {
     pinMode(displayDigitPins[i], OUTPUT);
@@ -53,34 +42,43 @@ void setup()
 //loop function
 void loop()
 {
+  int S1 = 0; //displayed number on digit 1 of the 7-segment
+  int S2 = 0; //displayed number on digit 2 of the 7-segment
+  int M1 = 0; //displayed number on digit 3 of the 7-segment
+  int M2 = 0; //displayed number on digit 4 of the 7-segment
   setTimer(&S1 , &S2, &M1, &M2);
-  countDown();
-  fireAlarm(0, 0, 0, 0);
+  countDown(&S1 , &S2, &M1, &M2);
+  fireAlarm(0, 0, 0, 0, &S1 , &S2, &M1, &M2);
 }
 
+//function to prompot user to set counting time
 void setTimer(int *s1 , int *s2 , int *m1, int *m2)
 {
+  //3 variables to calc seconds according to how many time the plus and minus buttons have been pushed
   int secondsPlusCount = 0;
   int secondsMinusCount = 0;
   int secondsTotalCount = 0;
+  //3 variables to calc minutes according to how many time the plus and minus buttons have been pushed
   int minsPlusCount = 0;
   int minsMinusCount = 0;
   int minsTotalCount = 0;
-  unsigned long lastButtonPush = millis();
+  unsigned long lastButtonPush = millis();   //last time either plus or mins button has been pushed
   int buttonsState = 0; //to choose between setting minutes or seconds (defaultt 0 seconds)
-  functionState = 0;
+  functionState = 0;   // functionState = 0 while not counting means that user set time
+  // exist only when either plus or mins button have been pushed AND the user is inactive for 5 seconds
   while (!functionState || ( millis() - lastButtonPush < 5000) )
   {
+    //toggle between setting mins or seconds when function button is pushed
     if (digitalRead(functionPin) == LOW)
     {
-      buttonsState = !buttonsState;
+      buttonsState = !buttonsState; //toggle between mins and seconds
       if ( !buttonsState )
       {
-        customDelay(leds[*s1], leds[*s2], 0, 0);
+        customDelay(leds[*s1], leds[*s2], 0, 0); //seconds are active
       }
       else
       {
-        customDelay(0, 0, leds[*m1], leds[*m2]);
+        customDelay(0, 0, leds[*m1], leds[*m2]); //mins are active
       }
     }
 
@@ -103,6 +101,7 @@ void setTimer(int *s1 , int *s2 , int *m1, int *m2)
         functionState = 1;
         lastButtonPush = millis();
       }
+      //to enable the user to start setting the seconds at 59
       if (secondsTotalCount + secondsPlusCount - secondsMinusCount < 0 )
       {
         secondsTotalCount = 60 - secondsMinusCount;
@@ -153,6 +152,7 @@ void setTimer(int *s1 , int *s2 , int *m1, int *m2)
         functionState = 1;
         lastButtonPush = millis();
       }
+      //to enable the user to start setting the minutes at 23
       if (minsTotalCount + minsPlusCount - minsMinusCount < 0 )
       {
         minsTotalCount = 24 - minsMinusCount;
@@ -187,52 +187,54 @@ void setTimer(int *s1 , int *s2 , int *m1, int *m2)
   functionState = 0;
 }
 
-void countDown()
+void countDown(int *s1 , int *s2 , int *m1, int *m2)
 {
   countPreviousTime = millis();
-  for (M2 ; M2 >= 0 ; M2--)
+  for (*m2 ; *m2 >= 0 ; --*m2)
   {
-    for (M1; M1 >= 0 ; M1--)
+    for (*m1; *m1 >= 0 ; --*m1)
     {
-      for (S2 ; S2 >= 0 ; S2--)
+      for (*s2 ; *s2  >= 0 ; --*s2)
       {
-        for (S1 ; S1 >= 0 ; S1--)
+        for (*s1  ; *s1 >= 0 ; --*s1)
         {
           while ((millis() - countPreviousTime) < 1000)
           {
+            //exit if function button is pushed during counting down
             if (digitalRead(functionPin) == LOW)
             {
-              S1 = 0;
-              S2 = 0;
-              M1 = 0;
-              M2 = 0;
+              *s1 = 0;
+              *s2 = 0;
+              *m1 = 0;
+              *m2 = 0;
               customDelay(leds[0], leds[0], 0, 0);
               return;
             }
-            oneDisplayRound(leds[S1], leds[S2], leds[M1] + 1, leds[M2]);
+            oneDisplayRound(leds[*s1], leds[*s2], leds[*m1] + 1, leds[*m2]);
             //Serial.println(S1);
           }
           countPreviousTime = millis();
         }
         //reset s1 to countdwn from 9
-        S1 = 9;
+        *s1 = 9;
       }
       //reset s2 to countdwn from 5
-      S2 = 5;
+      *s2 = 5;
     }
-    M1 = 3;
+    *m1 = 3;
   }
-  S1 = 0;
-  S2 = 0;
-  M1 = 0;
-  M2 = 0;
+  *s1 = 0;
+  *s2 = 0;
+  *m1 = 0;
+  *m2 = 0;
   functionState = 1;
 }
 
-
+//function to implement dynamic scanning
 void showDigit(byte digit, byte displayIndex)
 {
   outSeven(digit);
+  //only one digit is active at a time
   for (byte i = 8; i <= 11; i++)
   { if ( i == displayIndex )
       digitalWrite(i, LOW);
@@ -251,6 +253,7 @@ void outSeven(byte led)
   digitalWrite(memoryClockPin, HIGH);
 }
 
+//function to encounter for button bouncing by introducing a delay 
 void customDelay(byte b1, byte b2, byte b3, byte b4)
 {
   for (int i = 0 ; i < 30; i++)
@@ -267,9 +270,11 @@ void oneDisplayRound(byte b1, byte b2, byte b3, byte b4)
   showDigit(b4, displayDigitPins[3]);
 }
 
-void fireAlarm(int b1, int b2, int b3, int b4)
+
+//function to activate the buzzer
+void fireAlarm(int b1, int b2, int b3, int b4, int *s1 , int *s2 , int *m1, int *m2)
 {
-  if (S1 == b1 && S2 == b2 && M1 == b3 && M2 == b4 && functionState)
+  if (*s1 == b1 && *s2 == b2 && *m1 == b3 && *m2 == b4 && functionState)
   {
     while (digitalRead(functionPin) == HIGH)
     {
