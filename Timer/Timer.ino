@@ -48,7 +48,10 @@ void loop()
   int M2 = 0; //displayed number on digit 4 of the 7-segment
   setTimer(&S1 , &S2, &M1, &M2);
   countDown(&S1 , &S2, &M1, &M2);
-  fireAlarm(0, 0, 0, 0, &S1 , &S2, &M1, &M2);
+  if (S1 == 0 && S2 == 0 && M1 == 0 && M2 == 0 && functionState)
+  {
+    fireAlarm();
+  }
 }
 
 //function to prompot user to set counting time
@@ -253,7 +256,7 @@ void outSeven(byte led)
   digitalWrite(memoryClockPin, HIGH);
 }
 
-//function to encounter for button bouncing by introducing a delay 
+//function to encounter for button bouncing by introducing a delay
 void customDelay(byte b1, byte b2, byte b3, byte b4)
 {
   for (int i = 0 ; i < 30; i++)
@@ -272,17 +275,16 @@ void oneDisplayRound(byte b1, byte b2, byte b3, byte b4)
 
 
 //function to activate the buzzer
-void fireAlarm(int b1, int b2, int b3, int b4, int *s1 , int *s2 , int *m1, int *m2)
+void fireAlarm()
 {
-  if (*s1 == b1 && *s2 == b2 && *m1 == b3 && *m2 == b4 && functionState)
+
+  while (digitalRead(functionPin) == HIGH)
   {
-    while (digitalRead(functionPin) == HIGH)
-    {
-      oneDisplayRound(leds[0], leds[0], leds[0], leds[0]);
-      digitalWrite(alarmPin, HIGH);
-    }
-    digitalWrite(alarmPin, LOW);
-    functionState = 0;
-    customDelay(leds[0], leds[0], 0, 0);
+    oneDisplayRound(leds[0], leds[0], leds[0], leds[0]);
+    digitalWrite(alarmPin, HIGH);
   }
+  digitalWrite(alarmPin, LOW);
+  functionState = 0;
+  customDelay(leds[0], leds[0], 0, 0);
+
 }
