@@ -1,11 +1,19 @@
-/* This is a valid comment
-
+/* 
   - A sketch to work with a 4 digit 7-segment display,8-bit shift register,active buzzer and 3 push buttons.
   - Using the 3 buttons (function,plus,minus) buttons the user can set a time.
   - When the user stop setting the timer , the screen starts to count down until it reach zero time, at this point the buzzer starts beeping until function button is pushed.
   - If the function button is pushed in the process of counting down,the user is prompoted to set a new counter.
   - Author : Abdelrahman Galal
 
+       A
+      ---
+   F |   | B
+     | G |
+      ---
+   E |   | C
+     |   |
+      ---  .
+       D  DP
 */
 
 const byte dataPin = 2; // send serial digits to 7-segment through the shift register
